@@ -1,0 +1,10 @@
+# 개인정보 및 환자 정보가 담긴 파일 제외
+커스텀_PMMA_작업장부.csv
+mes_data_master.json
+
+# 로그인 인증 토큰 파일 제외
+mes_auth_state.json
+
+# 파이썬 실행 시 자동 생성되는 캐시 폴더 제외
+__pycache__/
+.pytest_cache/
