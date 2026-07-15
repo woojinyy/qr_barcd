@@ -245,14 +245,14 @@ def select_source_folder():
     return filedialog.askdirectory(title="원본 경로 선택")
 
 # ---------------------------------------------------------
-# [3] 과잉 해석 차단 & 🚨 리메이크(A/S) 프리패스 탑재
+# [3] 파일 이동 및 매칭 프로세스
 # ---------------------------------------------------------
 def start_safe_move_process():
     mes_api_data = fetch_mes_data_live()
     src_path = select_source_folder()
     if not src_path: return
 
-    print(f"\n--- 이동, 매칭 시작 ---")
+    print(f"\n--- 🚀 파일 이동 및 3단계(A->B->C) 매칭 시작 ---")
     items = os.listdir(src_path)
 
     for item_name in items:
@@ -274,7 +274,8 @@ def start_safe_move_process():
         file_qr = ""
         if parts:
             last_part = parts[-1]
-            if len(last_part) == 4 and last_part.isalnum() and not last_part.isdigit():
+            # 🚨 [치명적 버그 수정] 숫자로만 이루어진 4자리 QR코드(예: 8222)도 완벽하게 QR로 인정합니다!
+            if len(last_part) == 4 and last_part.isalnum():
                 file_qr = last_part.upper()
 
         name_for_barcode = re.sub(r'20\d{2}-\d{2}-\d{2}', '', file_name_upper)
@@ -300,7 +301,7 @@ def start_safe_move_process():
             if len(qr_matched_cases) == 1:
                 final_case = qr_matched_cases[0]
                 all_matched_cases = qr_matched_cases
-                print(f"   🎯 [Track A] 고유 QR({file_qr})일치")
+                print(f"   🎯 [Track A] 고유 QR({file_qr}) 단독 일치!")
             elif len(qr_matched_cases) > 1:
                 for case in qr_matched_cases:
                     barcode = str(case.get("barcode_id", "")).strip()
@@ -308,7 +309,7 @@ def start_safe_move_process():
                         all_matched_cases.append(case)
                 if all_matched_cases:
                     final_case = all_matched_cases[0]
-                    print(f"   🎯 [Track A] QR 중복 방어 -> 바코드  일치")
+                    print(f"   🎯 [Track A] QR 중복 방어 -> 바코드 완벽 일치!")
 
         if not final_case and mes_api_data:
             bc_matched_cases = []
@@ -327,7 +328,7 @@ def start_safe_move_process():
                         all_matched_cases.append(case)
                 if all_matched_cases:
                     final_case = all_matched_cases[0]
-                    print(f"   🚑 [Track B] 바코드 중복 방어 -> QR 일치")
+                    print(f"   🚑 [Track B] 바코드 중복 방어 -> QR 일치!")
                 else:
                     final_case = bc_matched_cases[0]
                     all_matched_cases = [final_case]
@@ -362,17 +363,15 @@ def start_safe_move_process():
                                 folder_dt = datetime.strptime(folder_date_match.group(1), "%y%m%d")
                                 diff_days = abs((file_dt - folder_dt).days)
 
-                                # 🚨 [시간 모순 15일 검사]
                                 if diff_days > 15:
-                                    # 🚨 [리메이크(A/S) 프리패스 검사] 바코드 일치 여부 또는 RE 키워드 검사
                                     final_barcode_chk = str(final_case.get("barcode_id", "")).strip()
                                     is_bc_match = final_barcode_chk and len(final_barcode_chk) >= 3 and (final_barcode_chk in name_for_barcode or (final_barcode_chk.isdigit() and str(int(final_barcode_chk)) in file_numbers_int))
                                     is_re_keyword = "RE" in file_name_upper or "리메이크" in file_name_upper or "AS" in file_name_upper
 
                                     if is_bc_match or is_re_keyword:
-                                        print(f"   🔄 [리메이크 작업] {diff_days}일 지났지만, 바코드({final_barcode_chk}) 일치 기존 주소 유지")
+                                        print(f"   🔄 [리메이크 작업] {diff_days}일 지났지만, 바코드({final_barcode_chk}) 일치(또는 RE 키워드) 확인! 기존 주소를 유지합니다.")
                                     else:
-                                        print(f"   👻 [경고] 재사용 유령 QR 감지 파일({file_date_match.group(1)}) vs 주소({folder_date_match.group(1)}). 폐기")
+                                        print(f"   👻 [경고] 재사용 유령 QR 감지! 파일({file_date_match.group(1)}) vs 주소({folder_date_match.group(1)}). 폐기합니다.")
                                         is_time_paradox = True
                             except: pass
 
@@ -396,14 +395,11 @@ def start_safe_move_process():
             else:
                 print("   ⚠️ API 장부에 환자는 있으나 '주소(desc)'가 빈칸입니다!")
 
-        # =====================================================
-        # 🛤️ 3단계. Track C
-        # =====================================================
         if not final_target_path:
             if not file_qr:
-                print(f"   🚨 매칭할 QR코드 없고, 바코드도 없음.")
+                print(f"   🚨 매칭할 QR코드도 없고, 바코드도 식별되지 않습니다.")
             else:
-                print(f"   🚨 API 경로 탐색 실패(또는 과거 주소 폐기). 찐막 [Track C - NAS 물리 수색]")
+                print(f"   🚨 API 경로 탐색 실패(또는 과거 주소 폐기). 최후의 보루 [Track C - NAS 물리 수색]을 가동합니다...")
                 nas_base_paths = [
                     r"\\192.168.0.100\scan\QR\26",
                     r"Z:\ROYDENT QRCODE SYSTEM\2026",
@@ -424,12 +420,8 @@ def start_safe_move_process():
                 if all_matched_nas_folders:
                     all_matched_nas_folders.sort(key=lambda x: os.path.basename(x), reverse=True)
                     final_target_path = all_matched_nas_folders[0]
-                    print(f"   🎯 [Track C 패스] 전체 NAS "
-                          f"가장 최신 폴더 '{os.path.basename(final_target_path)}'를 찾음")
+                    print(f"   🎯 [Track C 패스] 전체 NAS를 수색하여 가장 최신 폴더 '{os.path.basename(final_target_path)}'를 찾아냈습니다!")
 
-        # =====================================================
-        # 4th. 장부 처리 및 파일 이동
-        # =====================================================
         if final_target_path:
             if file_qr and file_qr not in final_target_path.upper():
                 print(f"   ❌ [치명적 에러] 최종 목적지({final_target_path})에 타겟 QR({file_qr})이 없습니다! 이동 강제 차단.")
@@ -460,7 +452,7 @@ def start_safe_move_process():
                 actual_saved_name = item_name
 
                 if os.path.exists(dest_path):
-                    print(f"   ⚠️ 동일한 이름의 폴더/파일 존재! '_수정본'을 붙여서 이동.")
+                    print(f"   ⚠️ 동일한 이름의 폴더/파일 존재! '_수정본'을 붙여서 이동합니다.")
 
                     is_file = os.path.isfile(full_src)
                     if is_file:
@@ -480,7 +472,7 @@ def start_safe_move_process():
                         counter += 1
 
                 shutil.move(full_src, dest_path)
-                print(f"   ✅ 완료: {final_target_path}")
+                print(f"   ✅ 배달 완료: {final_target_path}")
 
                 if needs_special_log:
                     t_type_combined = ", ".join(logged_types)
@@ -489,7 +481,7 @@ def start_safe_move_process():
             except Exception as e:
                 print(f"   ❌ 파일 이동 실패: {e}")
         else:
-            print(f"   💀 [최종 실패] 매칭할 수 없습니다.")
+            print(f"   💀 [최종 실패] 매칭할 수 없습니다. 수동 확인이 필요합니다.")
 
 if __name__ == "__main__":
     start_safe_move_process()
